@@ -18,7 +18,44 @@ echo "0 5 * * * /usr/local/bin/analyze-memwatch.sh" >> "$TMP_CRON"
 crontab "$TMP_CRON"
 rm "$TMP_CRON"
 
-# --- Schritt 3: Pangolin-Installer herunterladen ---
+# --- Schritt 3: Hilfsskripte installieren ---
+echo "📄 Installiere log-mem-status.sh und analyze-memwatch.sh..."
+
+cat <<'EOF' > /usr/local/bin/log-mem-status.sh
+#!/bin/bash
+timestamp=$(date +"%Y-%m-%d %H:%M:%S")
+meminfo=$(free -m | grep -E 'Mem|Swap' | awk '{print $1 ": " $3 "/" $2 " MB"}')
+echo "$timestamp | $meminfo" >> /var/log/memwatch.log
+
+EOF
+chmod +x /usr/local/bin/log-mem-status.sh
+
+cat <<'EOF' > /usr/local/bin/analyze-memwatch.sh
+#!/bin/bash
+
+# Logdatei
+LOGFILE="/var/log/memwatch.log"
+TEMPFILE="/tmp/memwatch_filtered.log"
+
+# 1. Nur Einträge der letzten 2 Tage behalten
+awk -v DateLimit="$(date --date='2 days ago' +'%Y-%m-%d')" '
+{
+  split($1, d, "-")
+  entry = sprintf("%04d-%02d-%02d", d[1], d[2], d[3])
+  if (entry >= DateLimit) print $0
+}' "$LOGFILE" > "$TEMPFILE"
+
+# 2. Ersetze Originaldatei mit gefilterter Version
+mv "$TEMPFILE" "$LOGFILE"
+
+# 3. Optional: Filter für hohe RAM/SWAP-Nutzung (z. B. >800 MB RAM oder Swap-Nutzung >0)
+echo "Kritische Speicherzustände (RAM >800MB oder Swap >0MB):"
+grep -E "Mem: [8-9][0-9][0-9]|Mem: [1-9][0-9]{3,}|Swap: [1-9]" "$LOGFILE"
+
+EOF
+chmod +x /usr/local/bin/analyze-memwatch.sh
+
+# --- Schritt 4: Pangolin-Installer herunterladen ---
 echo "⬇️  Lade Pangolin-Installer herunter..."
 
 ARCH=$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/')
