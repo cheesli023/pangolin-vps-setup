@@ -33,9 +33,10 @@ echo "🕒 Cronjobs einrichten..."
 echo "🌐 Docker-Netzwerk vorbereiten..."
 docker network create web || true
 
-echo "📁 Leere Konfig-Ordner anlegen..."
+echo "📁 Konfig-Ordner anlegen und minimale Konfigurationen erstellen..."
 mkdir -p /etc/pangolin /opt/traefik /opt/gerbil
 
+# Create minimal Traefik configuration
 cat << 'EOF' > /opt/traefik/traefik.toml
 # Leere Traefik-Konfiguration
 [entryPoints]
@@ -43,7 +44,23 @@ cat << 'EOF' > /opt/traefik/traefik.toml
     address = ":80"
 EOF
 
-echo "🐳 Starte Docker-Container mit leerer Konfiguration..."
+# Create minimal Pangolin configuration - REQUIRED for container to start
+# Füge hier eine minimale config.yml Struktur ein
+cat << 'EOF' > /etc/pangolin/config.yml
+# Minimal Pangolin configuration - modify via interactive setup
+# Diese minimale Datei erlaubt dem Container zu starten.
+# Das interaktive Setup-Tool wird diese wahrscheinlich erweitern/ändern.
+app:
+  dashboard_url: http://localhost # Platzhalter - wird vom Setup wahrscheinlich geändert
+server:
+  hostname: pangolin # Muss dem Containernamen entsprechen
+# Füge weitere notwendige minimale Sektionen hinzu, falls bekannt
+traefik:
+  http_entrypoint: web
+  https_entrypoint: websecure # Gehe davon aus, dass HTTPS später konfiguriert wird
+EOF
+
+echo "🐳 Starte Docker-Container..."
 
 # Traefik
 docker run -d   --name traefik   --network web   -p 80:80 -p 443:443   -v /opt/traefik/traefik.toml:/etc/traefik/traefik.toml   -v /var/run/docker.sock:/var/run/docker.sock   traefik:v3.3.5
@@ -62,13 +79,25 @@ TIMEOUT=60 # Maximale Wartezeit in Sekunden
 ELAPSED=0
 while [ $ELAPSED -lt $TIMEOUT ]; do
   # Überprüfe den Status des Containers. --format '{{.State.Running}}' gibt 'true' oder 'false' zurück.
-  # 2>/dev/null unterdrückt Fehlermeldungen, falls der Container z.B. noch nicht existiert
   CONTAINER_STATUS=$(docker inspect --format '{{.State.Running}}' pangolin 2>/dev/null || echo "false")
 
   if [ "$CONTAINER_STATUS" = "true" ]; then
     echo "✅ Pangolin Container läuft."
     break # Schleife verlassen, da Container läuft
   fi
+
+  # Überprüfe auch, ob der Container existiert, aber im Zustand 'exited' ist
+  CONTAINER_EXISTS=$(docker inspect pangolin >/dev/null 2>&1)
+  if [ $? -eq 0 ]; then
+      CONTAINER_RUNNING=$(docker inspect --format '{{.State.Running}}' pangolin 2>/dev/null || echo "false")
+      if [ "$CONTAINER_RUNNING" != "true" ]; then
+          echo "❌ Pangolin Container existiert, läuft aber nicht. Status: $(docker inspect --format '{{.State.Status}}' pangolin 2>/dev/null)."
+          echo "Bitte überprüfe die Logs des Containers manuell:"
+          echo "  docker logs pangolin"
+          exit 1 # Skript mit Fehler beenden, wenn Container nicht läuft, aber existiert
+      fi
+  fi
+
 
   # Warte 5 Sekunden vor der nächsten Überprüfung
   sleep 5
@@ -83,6 +112,8 @@ if [ $ELAPSED -ge $TIMEOUT ]; then
   echo "Bitte überprüfe den Status und die Logs des Containers manuell, um das Problem zu finden:"
   echo "  docker ps -a"
   echo "  docker logs pangolin"
+  # Füge auch Gerbil hinzu, falls der auch fehlschlägt
+  echo "  docker logs gerbil"
   exit 1 # Skript mit Fehler beenden
 fi
 # --- Ende der Warte-Logik ---
