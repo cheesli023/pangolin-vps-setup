@@ -56,7 +56,7 @@ docker run -d   --name gerbil   --network web   fosrl/gerbil:1.0.0-beta.3
 
 echo "✅ Container laufen. Pangolin-Setup wird jetzt automatisiert gestartet..."
 
-sleep 3 # Kurze Pause, um sicherzustellen, dass Container wirklich bereit sind
+sleep 10 # Kurze Pause, um sicherzustellen, dass Container wirklich bereit sind
 
 # Versuche den interaktiven Setup-Befehl in einer erzwungenen TTY-Umgebung auszuführen
 # /dev/null wird verwendet, um die von 'script' erstellte typescript-Datei zu verwerfen
