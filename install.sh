@@ -19,8 +19,8 @@ fi
 echo "📝 Logging-Skript installieren..."
 cat << 'EOF' > /usr/local/bin/log-mem-status.sh
 #!/bin/bash
-timestamp=$(date +"%Y-%m-%d %H:%M:%S")
-meminfo=$(free -m | grep -E 'Mem|Swap' | awk '{print $1 ": " $3 "/" $2 " MB"}')
+timestamp=<span class="math-inline">\(date \+"%Y\-%m\-%d %H\:%M\:%S"\)
+meminfo\=</span>(free -m | grep -E 'Mem|Swap' | awk '{print $1 ": " $3 "/" $2 " MB"}')
 echo "$timestamp | $meminfo" >> /var/log/memwatch.log
 EOF
 chmod +x /usr/local/bin/log-mem-status.sh
@@ -83,34 +83,31 @@ echo "✅ Container Startbefehle wurden ausgeführt."
 echo "⏳ Warte auf Start des Pangolin Containers..."
 TIMEOUT=60 # Maximale Wartezeit in Sekunden
 ELAPSED=0
-while [ $ELAPSED -lt $TIMEOUT ]; do
-  # Überprüfe den Status des Containers. --format '{{.State.Running}}' gibt 'true' oder 'false' zurück.
-  CONTAINER_STATUS=$(docker inspect --format '{{.State.Running}}' pangolin 2>/dev/null || echo "false")
+while [ $ELAPSED -lt <span class="math-inline">TIMEOUT \]; do
+\# Überprüfe den Status des Containers\. \-\-format '\{\{\.State\.Running\}\}' gibt 'true' oder 'false' zurück\.
+CONTAINER\_STATUS\=</span>(docker inspect --format '{{.State.Running}}' pangolin 2>/dev/null || echo "false")
 
-  if [ "$CONTAINER_STATUS" = "true" ]; then
-    echo "✅ Pangolin Container läuft."
-    break # Schleife verlassen, da Container läuft
-  fi
-
-  # Überprüfe auch, ob der Container existiert, aber im Zustand 'exited' ist
-  # Dies hilft, den Fehler "container is not running" schneller zu diagnostizieren, wenn er existiert aber nicht läuft
-  CONTAINER_EXISTS=$(docker inspect pangolin >/dev/null 2>&1)
-  if [ $? -eq 0 ]; then # Prüfe, ob der Befehl erfolgreich war (Container existiert)
-      CONTAINER_RUNNING=$(docker inspect --format '{{.State.Running}}' pangolin 2>/dev/null || echo "false")
+  if [ "<span class="math-inline">CONTAINER\_STATUS" \= "true" \]; then
+echo "✅ Pangolin Container läuft\."
+break \# Schleife verlassen, da Container läuft
+fi
+\# Überprüfe auch, ob der Container existiert, aber im Zustand 'exited' ist
+\# Dies hilft, den Fehler "container is not running" schneller zu diagnostizieren, wenn er existiert aber nicht läuft
+CONTAINER\_EXISTS\=</span>(docker inspect pangolin >/dev/null 2>&1)
+  if [ <span class="math-inline">? \-eq 0 \]; then \# Prüfe, ob der Befehl erfolgreich war \(Container existiert\)
+CONTAINER\_RUNNING\=</span>(docker inspect --format '{{.State.Running}}' pangolin 2>/dev/null || echo "false")
       if [ "$CONTAINER_RUNNING" != "true" ]; then
-          echo "❌ Pangolin Container existiert, läuft aber nicht. Aktueller Status: $(docker inspect --format '{{.State.Status}}' pangolin 2>/dev/null)."
-          echo "Bitte überprüfe die Logs des Containers manuell:"
-          echo "  docker logs pangolin"
-          # Füge auch Gerbil hinzu, falls der auch fehlschlägt
-          echo "  docker logs gerbil"
-          exit 1 # Skript mit Fehler beenden, wenn Container nicht läuft, aber existiert
-      fi
-  fi
-
-
-  # Warte 5 Sekunden vor der nächsten Überprüfung
-  sleep 5
-  ELAPSED=$((ELAPSED + 5))
+          echo "❌ Pangolin Container existiert, läuft aber nicht. Aktueller Status: <span class="math-inline">\(docker inspect \-\-format '\{\{\.State\.Status\}\}' pangolin 2\>/dev/null\)\."
+echo "Bitte überprüfe die Logs des Containers manuell\:"
+echo "  docker logs pangolin"
+\# Füge auch Gerbil hinzu, falls der auch fehlschlägt
+echo "  docker logs gerbil"
+exit 1 \# Skript mit Fehler beenden, wenn Container nicht läuft, aber existiert
+fi
+fi
+\# Warte 5 Sekunden vor der nächsten Überprüfung
+sleep 5
+ELAPSED\=</span>((ELAPSED + 5))
   echo "Warte noch ($ELAPSED/$TIMEOUT Sekunden)..."
 done
 
@@ -132,6 +129,4 @@ echo "✅ Pangolin-Setup wird jetzt automatisiert gestartet..."
 
 # Versuche den interaktiven Setup-Befehl in einer erzwungenen TTY-Umgebung auszuführen
 # /dev/null wird verwendet, um die von 'script' erstellte typescript-Datei zu verwerfen
-script -c 'docker exec -it pangolin pangolin setup' /dev/null
-
-echo "✅ Setup-Skript abgeschlossen."
+script -c 'docker exec -it pangolin pangolin setup' /dev/
