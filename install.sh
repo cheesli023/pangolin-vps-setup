@@ -24,15 +24,19 @@ echo "Lade und starte Pangolin-Installer abhängig von Systemarchitektur..."
 ARCH=$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/')
 URL="https://github.com/fosrl/pangolin/releases/download/1.3.1/installer_linux_$ARCH"
 
-wget -O installer "$URL"
+TMP_BIN=$(mktemp /tmp/pangolin_installer.XXXXXX)
+
+wget -O "$TMP_BIN" "$URL"
 
 if [ $? -ne 0 ]; then
   echo "Download fehlgeschlagen von $URL"
   exit 1
 fi
 
-chmod +x ./installer
+chmod +x "$TMP_BIN"
 echo "Starte Installer..."
-./installer
+"$TMP_BIN"
+
+rm "$TMP_BIN"
 
 echo "Setup abgeschlossen."
