@@ -87,13 +87,16 @@ while [ $ELAPSED -lt $TIMEOUT ]; do
   fi
 
   # Überprüfe auch, ob der Container existiert, aber im Zustand 'exited' ist
+  # Dies hilft, den Fehler "container is not running" schneller zu diagnostizieren, wenn er existiert aber nicht läuft
   CONTAINER_EXISTS=$(docker inspect pangolin >/dev/null 2>&1)
-  if [ $? -eq 0 ]; then
+  if [ $? -eq 0 ]; then # Prüfe, ob der Befehl erfolgreich war (Container existiert)
       CONTAINER_RUNNING=$(docker inspect --format '{{.State.Running}}' pangolin 2>/dev/null || echo "false")
       if [ "$CONTAINER_RUNNING" != "true" ]; then
-          echo "❌ Pangolin Container existiert, läuft aber nicht. Status: $(docker inspect --format '{{.State.Status}}' pangolin 2>/dev/null)."
+          echo "❌ Pangolin Container existiert, läuft aber nicht. Aktueller Status: $(docker inspect --format '{{.State.Status}}' pangolin 2>/dev/null)."
           echo "Bitte überprüfe die Logs des Containers manuell:"
           echo "  docker logs pangolin"
+          # Füge auch Gerbil hinzu, falls der auch fehlschlägt
+          echo "  docker logs gerbil"
           exit 1 # Skript mit Fehler beenden, wenn Container nicht läuft, aber existiert
       fi
   fi
