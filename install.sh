@@ -1,11 +1,11 @@
 #!/bin/bash
 
 # --- Schritt 1: System aktualisieren ---
-echo "Führe apt update & upgrade aus..."
+echo "🛠  Führe apt update & upgrade aus..."
 sudo apt update && sudo apt upgrade -y
 
 # --- Schritt 2: Cronjobs einrichten ---
-echo "Füge benutzerdefinierte Cronjobs hinzu..."
+echo "📆 Füge benutzerdefinierte Cronjobs hinzu..."
 
 TMP_CRON=$(mktemp)
 crontab -l 2>/dev/null > "$TMP_CRON"
@@ -18,26 +18,51 @@ echo "0 5 * * * /usr/local/bin/analyze-memwatch.sh" >> "$TMP_CRON"
 crontab "$TMP_CRON"
 rm "$TMP_CRON"
 
-# --- Schritt 3: Installer nur herunterladen ---
-echo "Lade Pangolin-Installer herunter..."
+# --- Schritt 3: Pangolin-Installer herunterladen ---
+echo "⬇️  Lade Pangolin-Installer herunter..."
 
 ARCH=$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/')
 URL="https://github.com/fosrl/pangolin/releases/download/1.3.1/installer_linux_$ARCH"
-INSTALLER_PATH="/tmp/pangolin_installer"
 
-wget -O "$INSTALLER_PATH" "$URL"
+# Zielpfad mit Fallback
+if [ -w /usr/local/bin ]; then
+  INSTALLER_PATH="/usr/local/bin/pangolin_installer"
+  USE_SUDO=true
+elif [ -d "$HOME/.local/bin" ] && [ -w "$HOME/.local/bin" ]; then
+  INSTALLER_PATH="$HOME/.local/bin/pangolin_installer"
+  USE_SUDO=false
+else
+  INSTALLER_PATH="$(mktemp /tmp/pangolin_installer.XXXXXX)"
+  USE_SUDO=false
+fi
 
-if [ $? -ne 0 ]; then
-  echo "Download fehlgeschlagen von $URL"
+# Herunterladen
+if [ "$USE_SUDO" = true ]; then
+  sudo wget -O "$INSTALLER_PATH" "$URL"
+  sudo chmod +x "$INSTALLER_PATH"
+else
+  wget -O "$INSTALLER_PATH" "$URL"
+  chmod +x "$INSTALLER_PATH"
+fi
+
+# Pfadprüfung
+if [ ! -x "$INSTALLER_PATH" ]; then
+  echo "❌ Fehler: Installer konnte nicht heruntergeladen oder ausführbar gemacht werden."
   exit 1
 fi
 
-chmod +x "$INSTALLER_PATH"
+# Kommandovorschlag
+if [ "$USE_SUDO" = true ]; then
+  RUN_CMD="sudo $INSTALLER_PATH"
+else
+  RUN_CMD="$INSTALLER_PATH"
+fi
 
+# --- Abschlussmeldung ---
 echo ""
-echo "✅ Installer wurde erfolgreich heruntergeladen nach: $INSTALLER_PATH"
-echo "👉 Starte ihn jetzt manuell mit:"
+echo "✅ Das Skript wurde erfolgreich ausgeführt."
 echo ""
-echo "    $INSTALLER_PATH"
+echo "👉 Starte jetzt die interaktive Einrichtung mit:"
 echo ""
-echo "Du wirst dann nach dem Admin-Passwort gefragt."
+echo "    $RUN_CMD"
+echo ""
