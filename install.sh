@@ -18,25 +18,26 @@ echo "0 5 * * * /usr/local/bin/analyze-memwatch.sh" >> "$TMP_CRON"
 crontab "$TMP_CRON"
 rm "$TMP_CRON"
 
-# --- Schritt 3: Pangolin-Installer herunterladen und ausführen ---
-echo "Lade und starte Pangolin-Installer abhängig von Systemarchitektur..."
+# --- Schritt 3: Installer nur herunterladen ---
+echo "Lade Pangolin-Installer herunter..."
 
 ARCH=$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/')
 URL="https://github.com/fosrl/pangolin/releases/download/1.3.1/installer_linux_$ARCH"
+INSTALLER_PATH="/tmp/pangolin_installer"
 
-TMP_BIN=$(mktemp /tmp/pangolin_installer.XXXXXX)
-
-wget -O "$TMP_BIN" "$URL"
+wget -O "$INSTALLER_PATH" "$URL"
 
 if [ $? -ne 0 ]; then
   echo "Download fehlgeschlagen von $URL"
   exit 1
 fi
 
-chmod +x "$TMP_BIN"
-echo "Starte Installer..."
-"$TMP_BIN"
+chmod +x "$INSTALLER_PATH"
 
-rm "$TMP_BIN"
-
-echo "Setup abgeschlossen."
+echo ""
+echo "✅ Installer wurde erfolgreich heruntergeladen nach: $INSTALLER_PATH"
+echo "👉 Starte ihn jetzt manuell mit:"
+echo ""
+echo "    $INSTALLER_PATH"
+echo ""
+echo "Du wirst dann nach dem Admin-Passwort gefragt."
