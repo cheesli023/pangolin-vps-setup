@@ -60,6 +60,12 @@ traefik:
   https_entrypoint: websecure # Gehe davon aus, dass HTTPS später konfiguriert wird
 EOF
 
+# --- NEUE SCHRITTE: Sync und kurze Pause nach Dateierstellung ---
+sync # Stellt sicher, dass die Datei auf die Festplatte geschrieben wird
+sleep 2 # Eine kurze zusätzliche Pause
+# --- ENDE NEUE SCHRITTE ---
+
+
 echo "🐳 Starte Docker-Container..."
 
 # Traefik
