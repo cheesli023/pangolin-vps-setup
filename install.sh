@@ -1,5 +1,5 @@
 #!/bin/bash
-# VPS Setup-Skript mit automatischem Pangolin CLI-Wizard nach Containerstart
+# VPS Setup-Skript mit verbesserter Konfigurationsübergabe und Startreihenfolge
 
 set -e
 
@@ -45,11 +45,8 @@ cat << 'EOF' > /opt/traefik/traefik.toml
 EOF
 
 # Create minimal Pangolin configuration - REQUIRED for container to start
-# Füge hier eine minimale config.yml Struktur ein
 cat << 'EOF' > /etc/pangolin/config.yml
 # Minimal Pangolin configuration - modify via interactive setup
-# Diese minimale Datei erlaubt dem Container zu starten.
-# Das interaktive Setup-Tool wird diese wahrscheinlich erweitern/ändern.
 app:
   dashboard_url: http://localhost # Platzhalter - wird vom Setup wahrscheinlich geändert
 server:
@@ -60,28 +57,33 @@ traefik:
   https_entrypoint: websecure # Gehe davon aus, dass HTTPS später konfiguriert wird
 EOF
 
-# --- NEUE SCHRITTE: Sync und kurze Pause nach Dateierstellung ---
-sync # Stellt sicher, dass die Datei auf die Festplatte geschrieben wird
-sleep 2 # Eine kurze zusätzliche Pause
-# --- ENDE NEUE SCHRITTE ---
+# Sicherstellen, dass die Dateien auf das Dateisystem geschrieben werden
+sync
+sleep 1 # Eine kurze Pause nach der Dateierstellung
 
-
-echo "🐳 Starte Docker-Container..."
-
+echo "🐳 Starte Traefik Container..."
 # Traefik
 docker run -d   --name traefik   --network web   -p 80:80 -p 443:443   -v /opt/traefik/traefik.toml:/etc/traefik/traefik.toml   -v /var/run/docker.sock:/var/run/docker.sock   traefik:v3.3.5
 
-# Pangolin
-docker run -d   --name pangolin   --cap-add=NET_ADMIN   --network host   -v /etc/pangolin:/etc/pangolin   fosrl/pangolin:latest
+echo "🐳 Erstelle Pangolin Container und kopiere Konfiguration..."
+# Pangolin (erst erstellen, dann Konfig kopieren, dann starten)
+# Verwende docker create anstelle von docker run -d
+docker create   --name pangolin   --cap-add=NET_ADMIN   --network host   -v /etc/pangolin:/etc/pangolin   fosrl/pangolin:latest
 
-# Gerbil
-docker run -d   --name gerbil   --network web   fosrl/gerbil:1.0.0-beta.3
+# Kopiere die erstellte Konfigurationsdatei in den Container
+# Dies umgeht potenzielle Timing-Probleme beim Volume-Mount direkt nach docker run
+docker cp /etc/pangolin/config.yml pangolin:/etc/pangolin/config.yml
 
-echo "✅ Container Startbefehle wurden ausgeführt."
+echo "🐳 Starte Pangolin Container..."
+# Starte den Pangolin Container nach dem Kopieren der Konfig
+docker start pangolin
+
+
+echo "✅ Traefik und Pangolin Container (erstellt/gestartet) Startbefehle wurden ausgeführt."
 
 # --- Warte, bis der Pangolin-Container wirklich läuft ---
 echo "⏳ Warte auf Start des Pangolin Containers..."
-TIMEOUT=60 # Maximale Wartezeit in Sekunden
+TIMEOUT=90 # Erhöhte Wartezeit, da Startprobleme auftreten
 ELAPSED=0
 while [ $ELAPSED -lt $TIMEOUT ]; do
   # Überprüfe den Status des Containers. --format '{{.State.Running}}' gibt 'true' oder 'false' zurück.
@@ -93,39 +95,40 @@ while [ $ELAPSED -lt $TIMEOUT ]; do
   fi
 
   # Überprüfe auch, ob der Container existiert, aber im Zustand 'exited' ist
-  # Dies hilft, den Fehler "container is not running" schneller zu diagnostizieren, wenn er existiert aber nicht läuft
   CONTAINER_EXISTS=$(docker inspect pangolin >/dev/null 2>&1)
-  if [ $? -eq 0 ]; then # Prüfe, ob der Befehl erfolgreich war (Container existiert)
+  if [ $? -eq 0 ]; then
       CONTAINER_RUNNING=$(docker inspect --format '{{.State.Running}}' pangolin 2>/dev/null || echo "false")
       if [ "$CONTAINER_RUNNING" != "true" ]; then
           echo "❌ Pangolin Container existiert, läuft aber nicht. Aktueller Status: $(docker inspect --format '{{.State.Status}}' pangolin 2>/dev/null)."
           echo "Bitte überprüfe die Logs des Containers manuell:"
           echo "  docker logs pangolin"
-          # Füge auch Gerbil hinzu, falls der auch fehlschlägt
-          echo "  docker logs gerbil"
-          exit 1 # Skript mit Fehler beenden, wenn Container nicht läuft, aber existiert
+          # Hinweis: Gerbil wird jetzt später gestartet
+          exit 1 # Skript mit Fehler beenden
       fi
   fi
 
-
-  # Warte 5 Sekunden vor der nächsten Überprüfung
   sleep 5
   ELAPSED=$((ELAPSED + 5))
   echo "Warte noch ($ELAPSED/$TIMEOUT Sekunden)..."
 done
 
-# Überprüfe, ob die Schleife aufgrund eines Timeouts beendet wurde
 if [ $ELAPSED -ge $TIMEOUT ]; then
   echo "❌ Zeitüberschreitung beim Warten auf den Pangolin Container."
   echo "Der Container ist nach $TIMEOUT Sekunden nicht gestartet."
   echo "Bitte überprüfe den Status und die Logs des Containers manuell, um das Problem zu finden:"
   echo "  docker ps -a"
   echo "  docker logs pangolin"
-  # Füge auch Gerbil hinzu, falls der auch fehlschlägt
-  echo "  docker logs gerbil"
+  # Hinweis: Gerbil wird jetzt später gestartet
   exit 1 # Skript mit Fehler beenden
 fi
 # --- Ende der Warte-Logik ---
+
+
+# --- Starte Gerbil erst, nachdem Pangolin läuft ---
+echo "🐳 Starte Gerbil Container (Pangolin läuft)..."
+docker run -d   --name gerbil   --network web   fosrl/gerbil:1.0.0-beta.3
+echo "✅ Gerbil Startbefehl wurde ausgeführt."
+sleep 5 # Kurze Pause, damit Gerbil Zeit hat, Pangolin zu kontaktieren
 
 
 echo "✅ Pangolin-Setup wird jetzt automatisiert gestartet..."
