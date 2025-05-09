@@ -26,4 +26,13 @@ URL="https://github.com/fosrl/pangolin/releases/download/1.3.1/installer_linux_$
 
 wget -O installer "$URL"
 
-if
+if [ $? -ne 0 ]; then
+  echo "Download fehlgeschlagen von $URL"
+  exit 1
+fi
+
+chmod +x ./installer
+echo "Starte Installer..."
+./installer
+
+echo "Setup abgeschlossen."
