@@ -54,9 +54,41 @@ docker run -d   --name pangolin   --cap-add=NET_ADMIN   --network host   -v /etc
 # Gerbil
 docker run -d   --name gerbil   --network web   fosrl/gerbil:1.0.0-beta.3
 
-echo "✅ Container laufen. Pangolin-Setup wird jetzt automatisiert gestartet..."
+echo "✅ Container Startbefehle wurden ausgeführt."
 
-sleep 10 # Kurze Pause, um sicherzustellen, dass Container wirklich bereit sind
+# --- Warte, bis der Pangolin-Container wirklich läuft ---
+echo "⏳ Warte auf Start des Pangolin Containers..."
+TIMEOUT=60 # Maximale Wartezeit in Sekunden
+ELAPSED=0
+while [ $ELAPSED -lt $TIMEOUT ]; do
+  # Überprüfe den Status des Containers. --format '{{.State.Running}}' gibt 'true' oder 'false' zurück.
+  # 2>/dev/null unterdrückt Fehlermeldungen, falls der Container z.B. noch nicht existiert
+  CONTAINER_STATUS=$(docker inspect --format '{{.State.Running}}' pangolin 2>/dev/null || echo "false")
+
+  if [ "$CONTAINER_STATUS" = "true" ]; then
+    echo "✅ Pangolin Container läuft."
+    break # Schleife verlassen, da Container läuft
+  fi
+
+  # Warte 5 Sekunden vor der nächsten Überprüfung
+  sleep 5
+  ELAPSED=$((ELAPSED + 5))
+  echo "Warte noch ($ELAPSED/$TIMEOUT Sekunden)..."
+done
+
+# Überprüfe, ob die Schleife aufgrund eines Timeouts beendet wurde
+if [ $ELAPSED -ge $TIMEOUT ]; then
+  echo "❌ Zeitüberschreitung beim Warten auf den Pangolin Container."
+  echo "Der Container ist nach $TIMEOUT Sekunden nicht gestartet."
+  echo "Bitte überprüfe den Status und die Logs des Containers manuell, um das Problem zu finden:"
+  echo "  docker ps -a"
+  echo "  docker logs pangolin"
+  exit 1 # Skript mit Fehler beenden
+fi
+# --- Ende der Warte-Logik ---
+
+
+echo "✅ Pangolin-Setup wird jetzt automatisiert gestartet..."
 
 # Versuche den interaktiven Setup-Befehl in einer erzwungenen TTY-Umgebung auszuführen
 # /dev/null wird verwendet, um die von 'script' erstellte typescript-Datei zu verwerfen
